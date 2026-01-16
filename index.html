@@ -40,6 +40,16 @@
       color: #b5b5b5;
     }
 
+    .meta {
+      margin: 0 0 10px;
+      font-size: 12px;
+      color: #9a9a9a;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
     textarea {
       width: 100%;
       height: 70px;
@@ -65,6 +75,13 @@
       cursor: pointer;
     }
     button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .upgrade {
+      margin-top: 10px;
+      background: #2a2a2a;
+      color: #fff;
+    }
+
     .hooks { margin-top: 20px; }
     .hook {
       background: #0f0f0f;
@@ -74,11 +91,13 @@
       font-size: 14px;
       border: 1px solid #222;
     }
+
     .copy {
       margin-top: 10px;
       background: #2a2a2a;
       color: #fff;
     }
+
     .status {
       margin-top: 10px;
       font-size: 13px;
@@ -87,6 +106,7 @@
       word-break: break-word;
     }
     .status.error { color: #ff6b6b; }
+    .status.ok { color: #b6ffb6; }
   </style>
 </head>
 <body>
@@ -119,6 +139,11 @@
       • habits that ruin your focus
     </p>
 
+    <div class="meta">
+      <div id="limitText">Free: 3 generations/day</div>
+      <div id="counterText">Remaining today: —</div>
+    </div>
+
     <textarea id="topic" placeholder="Enter video topic..."></textarea>
     <button id="genBtn" onclick="generateHooks()">Generate hooks</button>
 
@@ -126,9 +151,51 @@
     <div class="hooks" id="hooks"></div>
 
     <button class="copy" onclick="copyHooks()">Copy all hooks</button>
+    <button class="upgrade" id="upgradeBtn" style="display:none;" onclick="upgrade()">Upgrade (Unlimited)</button>
   </div>
 
   <script>
+    const FREE_LIMIT_PER_DAY = 3;
+    const STORAGE_KEY = "tth_free_limit_v1";
+
+    function todayKey() {
+      // local date YYYY-MM-DD
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function getUsage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const obj = raw ? JSON.parse(raw) : {};
+        const t = todayKey();
+        if (obj.date !== t) return { date: t, used: 0 };
+        return { date: obj.date, used: Number(obj.used || 0) };
+      } catch {
+        return { date: todayKey(), used: 0 };
+      }
+    }
+
+    function setUsage(used) {
+      const obj = { date: todayKey(), used: used };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
+    }
+
+    function remaining() {
+      const u = getUsage();
+      const rem = Math.max(0, FREE_LIMIT_PER_DAY - u.used);
+      return { used: u.used, rem };
+    }
+
+    function updateCounterUI() {
+      const { rem } = remaining();
+      document.getElementById("counterText").textContent = `Remaining today: ${rem}`;
+      document.getElementById("upgradeBtn").style.display = (rem === 0) ? "block" : "none";
+    }
+
     function renderHooks(hooks) {
       const container = document.getElementById("hooks");
       container.innerHTML = "";
@@ -138,6 +205,12 @@
         div.textContent = h;
         container.appendChild(div);
       });
+    }
+
+    function upgrade() {
+      // Пока без оплаты — ведём на контакт/ожидание.
+      // Потом заменим на платежную страницу.
+      window.open("https://t.me/", "_blank"); // позже вставим твой Telegram/лендинг оплаты
     }
 
     async function generateHooks() {
@@ -152,6 +225,17 @@
       if (!topic) {
         status.className = "status error";
         status.textContent = "Please enter a topic.";
+        return;
+      }
+
+      // Лимит
+      const u = remaining();
+      if (u.rem <= 0) {
+        status.className = "status error";
+        status.textContent =
+          "Free limit reached (3/day).\nUpgrade for unlimited generations.";
+        document.getElementById("upgradeBtn").style.display = "block";
+        updateCounterUI();
         return;
       }
 
@@ -184,7 +268,13 @@
           return;
         }
 
-        status.textContent = "";
+        // Увеличиваем счётчик только при успешной генерации
+        const current = getUsage();
+        setUsage(current.used + 1);
+        updateCounterUI();
+
+        status.className = "status ok";
+        status.textContent = "Done.";
         renderHooks(hooks);
 
       } catch (e) {
@@ -203,6 +293,9 @@
       await navigator.clipboard.writeText(text);
       alert("Hooks copied");
     }
+
+    // init
+    updateCounterUI();
   </script>
 </body>
 </html>
