@@ -67,9 +67,11 @@
     .status {
       margin-top: 10px;
       font-size: 13px;
-      opacity: 0.85;
+      opacity: 0.9;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
-    .status.error { color: #ff6b6b; opacity: 1; }
+    .status.error { color: #ff6b6b; }
   </style>
 </head>
 <body>
@@ -121,19 +123,22 @@
           body: JSON.stringify({ topic })
         });
 
-        const data = await resp.json();
+        const data = await resp.json().catch(() => ({}));
 
         if (!resp.ok) {
           status.className = "status error";
-          status.textContent = "Error generating hooks. Try again.";
-          console.log("Server error:", data);
+          status.textContent =
+            "API ERROR\n" +
+            (data.status ? `Status: ${data.status}\n` : "") +
+            (data.error ? `Error: ${data.error}\n` : "") +
+            (data.details ? `Details: ${String(data.details).slice(0,300)}` : "No details");
           return;
         }
 
         const hooks = Array.isArray(data.hooks) ? data.hooks : [];
-        if (hooks.length === 0) {
+        if (!hooks.length) {
           status.className = "status error";
-          status.textContent = "No hooks returned. Try a different topic.";
+          status.textContent = "No hooks returned.";
           return;
         }
 
@@ -142,8 +147,7 @@
 
       } catch (e) {
         status.className = "status error";
-        status.textContent = "Network error. Try again.";
-        console.log(e);
+        status.textContent = "NETWORK ERROR\n" + String(e);
       } finally {
         btn.disabled = false;
       }
