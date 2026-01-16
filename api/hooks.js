@@ -1,18 +1,35 @@
 export default async function handler(req, res) {
-  // Разрешаем только POST
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+  // CORS (на всякий случай)
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
+      console.log("Missing OPENROUTER_API_KEY");
       return res.status(500).json({ error: "Missing OPENROUTER_API_KEY" });
     }
 
-    const { topic } = req.body || {};
-    const cleanTopic = String(topic || "").trim();
+    // Надёжное чтение body (работает везде)
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const raw = Buffer.concat(chunks).toString("utf8") || "{}";
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      console.log("Bad JSON body:", raw);
+      return res.status(400).json({ error: "Bad JSON body" });
+    }
+
+    const cleanTopic = String(parsed?.topic || "").trim();
     if (!cleanTopic) {
+      console.log("Missing topic");
       return res.status(400).json({ error: "Missing topic" });
     }
 
@@ -25,15 +42,14 @@ export default async function handler(req, res) {
       "Hooks should feel viral: curiosity, conflict, warning, bold claim, contrarian."
     ].join(" ");
 
-    const user = `Topic: ${cleanTopic}`;
+    console.log("Calling OpenRouter… topic:", cleanTopic);
 
     const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        // Эти заголовки можно оставить, они помогают OpenRouter с аналитикой
-        "HTTP-Referer": "https://vercel.app",
+        "HTTP-Referer": "https://tiktok-hooks.vercel.app",
         "X-Title": "TikTok Hook Generator"
       },
       body: JSON.stringify({
@@ -41,37 +57,34 @@ export default async function handler(req, res) {
         temperature: 0.9,
         messages: [
           { role: "system", content: system },
-          { role: "user", content: user }
+          { role: "user", content: `Topic: ${cleanTopic}` }
         ]
       })
     });
 
+    const text = await resp.text();
+
     if (!resp.ok) {
-      const errText = await resp.text();
-      return res.status(502).json({ error: "Upstream error", details: errText });
+      console.log("OpenRouter error:", resp.status, text);
+      return res.status(502).json({ error: "Upstream error", status: resp.status, details: text });
     }
 
-    const data = await resp.json();
-    const content = data?.choices?.[0]?.message?.content || "";
-
-    // Пытаемся распарсить JSON строго
     let hooks = [];
     try {
-      const parsed = JSON.parse(content);
-      hooks = Array.isArray(parsed?.hooks) ? parsed.hooks : [];
-    } catch {
-      // запасной вариант: вытащим строки построчно
-      hooks = content
-        .split("\n")
-        .map(s => s.replace(/^\s*\d+[\).\s-]+/, "").trim())
-        .filter(Boolean);
+      const data = JSON.parse(text);
+      const content = data?.choices?.[0]?.message?.content || "";
+      const parsed2 = JSON.parse(content);
+      hooks = Array.isArray(parsed2?.hooks) ? parsed2.hooks : [];
+    } catch (e) {
+      console.log("Parse error:", String(e), "Raw:", text);
+      return res.status(500).json({ error: "Parse error", details: String(e) });
     }
 
-    // Нормализуем до 10
-    hooks = hooks.slice(0, 10);
+    hooks = hooks.map(s => String(s).trim()).filter(Boolean).slice(0, 10);
 
     return res.status(200).json({ hooks });
   } catch (e) {
+    console.log("Server error:", e);
     return res.status(500).json({ error: "Server error", details: String(e?.message || e) });
   }
 }
