@@ -24,7 +24,15 @@
       border-radius: 12px;
       box-shadow: 0 0 40px rgba(0,0,0,0.6);
     }
-    h1 { font-size: 24px; margin: 0 0 16px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+
+    .desc {
+      margin: 0 0 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #cccccc;
+    }
+
     textarea {
       width: 100%;
       height: 70px;
@@ -77,6 +85,20 @@
 <body>
   <div class="app">
     <h1>TikTok Hook Generator</h1>
+
+    <p class="desc">
+      TikTok hooks decide whether people watch or scroll.
+      Enter your video topic and get <b>10 high-converting hooks</b>
+      designed to grab attention in the first 3 seconds.
+      <br><br>
+      Perfect for creators, coaches, marketers, and anyone posting daily content.
+      <br><br>
+      <b>Why this tool works better than others:</b><br>
+      • Built specifically for TikTok hooks — not generic AI text<br>
+      • Gives multiple hook angles in one click<br>
+      • No prompts, no setup, no thinking — just results
+    </p>
+
     <textarea id="topic" placeholder="Enter video topic..."></textarea>
     <button id="genBtn" onclick="generateHooks()">Generate hooks</button>
 
