@@ -37,7 +37,7 @@ export default async function handler(req, res) {
         "X-Title": "TikTok Hook Generator"
       },
       body: JSON.stringify({
-        model: "openai/gpt-4o-mini",
+        model: "openai/gpt-3.5-turbo",
         temperature: 0.9,
         messages: [
           { role: "system", content: system },
