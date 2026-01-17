@@ -113,7 +113,6 @@
   <div class="app">
     <h1>TikTok Hook Generator</h1>
 
-    <!-- ✅ Restored full landing copy -->
     <p class="desc">
       TikTok hooks decide whether people watch or scroll.
       Enter your video topic and get <b>10 high-converting hooks</b>
@@ -166,7 +165,6 @@
     const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
     const BASE_CHAIN_ID = "0x2105";
 
-    // ✅ UPDATED for 30-day PRO
     function isPro() {
       const until = localStorage.getItem("pro_until");
       if (!until) return false;
@@ -207,18 +205,15 @@
       });
     }
 
-    // ✅ payment + server verify + retry
     async function upgrade() {
       if (!window.ethereum) return alert("Install MetaMask");
 
       try {
-        // 1) connect wallet
         const provider = new ethers.BrowserProvider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         const signer = await provider.getSigner();
         const payer = await signer.getAddress();
 
-        // 2) ensure Base
         const network = await provider.getNetwork();
         if (network.chainId !== 8453n) {
           await window.ethereum.request({
@@ -227,7 +222,6 @@
           });
         }
 
-        // 3) send USDC
         const usdc = new ethers.Contract(
           USDC_BASE,
           ["function transfer(address to, uint256 amount) public returns (bool)"],
@@ -242,7 +236,6 @@
 
         alert("Verifying payment…");
 
-        // 4) verify on backend with retry (3 tries)
         for (let i = 0; i < 3; i++) {
           const vr = await fetch("/api/verify", {
             method: "POST",
@@ -253,9 +246,10 @@
           const vd = await vr.json().catch(() => ({}));
 
           if (vd.ok) {
-            // NOTE: next step will set pro_until based on server response
-            // for now, it will not grant PRO until we change this.
-            alert("✅ Payment verified! (Next step will activate 30-day PRO)");
+            if (vd.pro_until) {
+              localStorage.setItem("pro_until", vd.pro_until);
+            }
+            alert("✅ PRO unlocked for 30 days!");
             location.reload();
             return;
           }
