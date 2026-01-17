@@ -186,12 +186,22 @@
       return { used, rem };
     }
 
+    // ✅ UPDATED: show PRO until date
     function updateCounterUI() {
+      const el = document.getElementById("counterText");
+
+      if (isPro()) {
+        const until = localStorage.getItem("pro_until");
+        const d = new Date(until);
+        const nice = d.toLocaleString();
+        el.textContent = `PRO: Unlimited (until ${nice})`;
+        document.getElementById("upgradeBtn").style.display = "none";
+        return;
+      }
+
       const { rem } = remaining();
-      document.getElementById("counterText").textContent =
-        isPro() ? "PRO: Unlimited" : `Remaining: ${rem}`;
-      document.getElementById("upgradeBtn").style.display =
-        isPro() ? "none" : rem === 0 ? "block" : "none";
+      el.textContent = `Remaining: ${rem}`;
+      document.getElementById("upgradeBtn").style.display = rem === 0 ? "block" : "none";
     }
 
     function renderHooks(hooks) {
@@ -246,9 +256,7 @@
           const vd = await vr.json().catch(() => ({}));
 
           if (vd.ok) {
-            if (vd.pro_until) {
-              localStorage.setItem("pro_until", vd.pro_until);
-            }
+            if (vd.pro_until) localStorage.setItem("pro_until", vd.pro_until);
             alert("✅ PRO unlocked for 30 days!");
             location.reload();
             return;
