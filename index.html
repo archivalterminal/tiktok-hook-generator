@@ -186,7 +186,6 @@
       return { used, rem };
     }
 
-    // ✅ UPDATED: show PRO until date
     function updateCounterUI() {
       const el = document.getElementById("counterText");
 
@@ -215,15 +214,27 @@
       });
     }
 
+    // ✅ UPDATED: no alerts, status messages in UI
     async function upgrade() {
-      if (!window.ethereum) return alert("Install MetaMask");
+      const status = document.getElementById("status");
+      status.className = "status";
+      status.textContent = "";
+
+      if (!window.ethereum) {
+        status.className = "status error";
+        status.textContent = "MetaMask not found.";
+        return;
+      }
 
       try {
+        status.textContent = "Connecting wallet…";
+
         const provider = new ethers.BrowserProvider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         const signer = await provider.getSigner();
         const payer = await signer.getAddress();
 
+        status.textContent = "Checking network…";
         const network = await provider.getNetwork();
         if (network.chainId !== 8453n) {
           await window.ethereum.request({
@@ -231,6 +242,8 @@
             params: [{ chainId: BASE_CHAIN_ID }]
           });
         }
+
+        status.textContent = "Sending payment…";
 
         const usdc = new ethers.Contract(
           USDC_BASE,
@@ -241,10 +254,10 @@
         const amount = ethers.parseUnits(String(PRICE_USDC), 6);
         const tx = await usdc.transfer(RECEIVER, amount);
 
-        alert("Confirming transaction…");
+        status.textContent = "Confirming transaction…";
         const receipt = await tx.wait();
 
-        alert("Verifying payment…");
+        status.textContent = "Verifying payment…";
 
         for (let i = 0; i < 3; i++) {
           const vr = await fetch("/api/verify", {
@@ -257,8 +270,9 @@
 
           if (vd.ok) {
             if (vd.pro_until) localStorage.setItem("pro_until", vd.pro_until);
-            alert("✅ PRO unlocked for 30 days!");
-            location.reload();
+            status.className = "status ok";
+            status.textContent = "✅ PRO unlocked for 30 days!";
+            updateCounterUI();
             return;
           }
 
@@ -267,13 +281,16 @@
             continue;
           }
 
-          alert("Payment not verified: " + (vd.error || "unknown"));
+          status.className = "status error";
+          status.textContent = "Payment not verified: " + (vd.error || "unknown");
           return;
         }
 
-        alert("Payment pending. Please refresh the page in a moment.");
+        status.className = "status error";
+        status.textContent = "Payment pending. Please refresh in a moment.";
       } catch (e) {
-        alert("Payment cancelled or failed");
+        status.className = "status error";
+        status.textContent = "Payment cancelled or failed.";
       }
     }
 
@@ -282,15 +299,22 @@
       const status = document.getElementById("status");
       const btn = document.getElementById("genBtn");
 
+      status.className = "status";
       status.textContent = "";
       renderHooks([]);
 
-      if (!topic) return alert("Enter a topic");
+      if (!topic) {
+        status.className = "status error";
+        status.textContent = "Please enter a topic.";
+        return;
+      }
 
       const u = remaining();
       if (!isPro() && u.rem <= 0) {
         updateCounterUI();
-        return alert("Free limit reached. Upgrade to continue.");
+        status.className = "status error";
+        status.textContent = "Free limit reached. Upgrade to continue.";
+        return;
       }
 
       btn.disabled = true;
@@ -308,9 +332,11 @@
         if (!isPro()) setUsed(getUsed() + 1);
         updateCounterUI();
 
+        status.className = "status ok";
         status.textContent = "Done.";
       } catch {
-        status.textContent = "Error";
+        status.className = "status error";
+        status.textContent = "Error.";
       } finally {
         btn.disabled = false;
       }
