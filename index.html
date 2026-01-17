@@ -151,7 +151,16 @@
     <div class="hooks" id="hooks"></div>
 
     <button class="copy" onclick="copyHooks()">Copy all hooks</button>
+
     <button class="upgrade" id="upgradeBtn" style="display:none;" onclick="upgrade()">Upgrade (Unlimited)</button>
+    <div id="upgradeNote" style="
+      margin-top:6px;
+      font-size:12px;
+      color:#9a9a9a;
+      text-align:center;
+    ">
+      9 USDC • Base • 30 days PRO
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.umd.min.js"></script>
@@ -195,12 +204,15 @@
         const nice = d.toLocaleString();
         el.textContent = `PRO: Unlimited (until ${nice})`;
         document.getElementById("upgradeBtn").style.display = "none";
+        document.getElementById("upgradeNote").style.display = "none";
         return;
       }
 
       const { rem } = remaining();
       el.textContent = `Remaining: ${rem}`;
-      document.getElementById("upgradeBtn").style.display = rem === 0 ? "block" : "none";
+      const showUpgrade = rem === 0;
+      document.getElementById("upgradeBtn").style.display = showUpgrade ? "block" : "none";
+      document.getElementById("upgradeNote").style.display = showUpgrade ? "block" : "none";
     }
 
     function renderHooks(hooks) {
@@ -243,7 +255,7 @@
           });
         }
 
-        // --- ✅ NEW: check USDC balance before sending ---
+        // --- ✅ check USDC balance ---
         status.textContent = "Checking USDC balance…";
 
         const usdcRead = new ethers.Contract(
@@ -267,12 +279,11 @@
           status.textContent = `Not enough USDC. Need ${PRICE_USDC}, you have ${haveHuman}.`;
           return;
         }
-        // --- end USDC balance check ---
 
-        // ✅ NEW: check ETH for gas (tiny amount)
+        // ✅ check ETH for gas (tiny amount)
         status.textContent = "Checking gas (ETH) balance…";
         const ethBal = await provider.getBalance(payer);
-        const minGas = ethers.parseEther("0.00002"); // tiny buffer
+        const minGas = ethers.parseEther("0.00002");
         if (ethBal < minGas) {
           const haveEth = ethers.formatEther(ethBal);
           status.className = "status error";
