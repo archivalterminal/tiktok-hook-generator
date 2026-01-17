@@ -214,7 +214,7 @@
       });
     }
 
-    // ✅ UPDATED: no alerts, status messages in UI
+    // ✅ UPDATED: checks USDC balance before sending payment
     async function upgrade() {
       const status = document.getElementById("status");
       status.className = "status";
@@ -243,6 +243,32 @@
           });
         }
 
+        // --- ✅ NEW: check USDC balance before sending ---
+        status.textContent = "Checking USDC balance…";
+
+        const usdcRead = new ethers.Contract(
+          USDC_BASE,
+          [
+            "function balanceOf(address owner) view returns (uint256)",
+            "function decimals() view returns (uint8)"
+          ],
+          provider
+        );
+
+        const [bal, dec] = await Promise.all([
+          usdcRead.balanceOf(payer),
+          usdcRead.decimals()
+        ]);
+
+        const need = ethers.parseUnits(String(PRICE_USDC), dec);
+        if (bal < need) {
+          const haveHuman = ethers.formatUnits(bal, dec);
+          status.className = "status error";
+          status.textContent = `Not enough USDC. Need ${PRICE_USDC}, you have ${haveHuman}.`;
+          return;
+        }
+        // --- end balance check ---
+
         status.textContent = "Sending payment…";
 
         const usdc = new ethers.Contract(
@@ -251,8 +277,7 @@
           signer
         );
 
-        const amount = ethers.parseUnits(String(PRICE_USDC), 6);
-        const tx = await usdc.transfer(RECEIVER, amount);
+        const tx = await usdc.transfer(RECEIVER, need);
 
         status.textContent = "Confirming transaction…";
         const receipt = await tx.wait();
@@ -290,7 +315,9 @@
         status.textContent = "Payment pending. Please refresh in a moment.";
       } catch (e) {
         status.className = "status error";
-        status.textContent = "Payment cancelled or failed.";
+        const msg =
+          (e && (e.shortMessage || e.message)) ? (e.shortMessage || e.message) : String(e);
+        status.textContent = "Payment failed: " + msg;
       }
     }
 
