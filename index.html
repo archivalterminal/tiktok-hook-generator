@@ -113,10 +113,31 @@
   <div class="app">
     <h1>TikTok Hook Generator</h1>
 
+    <!-- ✅ Restored full landing copy -->
     <p class="desc">
       TikTok hooks decide whether people watch or scroll.
       Enter your video topic and get <b>10 high-converting hooks</b>
       designed to grab attention in the first 3 seconds.
+      <br><br>
+      Perfect for creators, coaches, marketers, and anyone posting daily content.
+      <br><br>
+      <b>Why this tool works better than others:</b><br>
+      • Built specifically for TikTok hooks — not generic AI text<br>
+      • Gives multiple hook angles in one click<br>
+      • No prompts, no setup, no thinking — just results
+    </p>
+
+    <p class="examples">
+      <b>What to enter:</b><br>
+      Enter a short video topic — not a script and not a question.
+      Just describe what your video is about in a few words.
+      <br><br>
+      <b>Examples:</b><br>
+      • how to get clients<br>
+      • why your videos get no views<br>
+      • how to grow on TikTok<br>
+      • common fitness mistakes<br>
+      • habits that ruin your focus
     </p>
 
     <div class="meta">
@@ -183,7 +204,7 @@
       });
     }
 
-    // ✅ UPDATED: payment + server verify + retry
+    // ✅ payment + server verify + retry
     async function upgrade() {
       if (!window.ethereum) return alert("Install MetaMask");
 
@@ -235,7 +256,6 @@
             return;
           }
 
-          // if tx receipt not indexed yet, wait and retry
           if (vd.error && String(vd.error).toLowerCase().includes("not found")) {
             await new Promise(r => setTimeout(r, 2000));
             continue;
