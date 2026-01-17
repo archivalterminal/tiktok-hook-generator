@@ -35,7 +35,7 @@ export default async function handler(req, res) {
     // constants
     const RECEIVER = "0x3B5Ca729ae7D427616873f5CD0B9418243090c4c";
     const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
-    const AMOUNT = ethers.parseUnits("3", 6); // 3 USDC (TEMP TEST)
+    const AMOUNT = ethers.parseUnits("9", 6); // 9 USDC
 
     const rpcUrl = process.env.BASE_RPC_URL || "https://mainnet.base.org";
     const provider = new ethers.JsonRpcProvider(rpcUrl);
