@@ -166,8 +166,11 @@
     const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
     const BASE_CHAIN_ID = "0x2105";
 
+    // ✅ UPDATED for 30-day PRO
     function isPro() {
-      return localStorage.getItem("pro") === "true";
+      const until = localStorage.getItem("pro_until");
+      if (!until) return false;
+      return new Date() < new Date(until);
     }
 
     function getUsed() {
@@ -250,8 +253,9 @@
           const vd = await vr.json().catch(() => ({}));
 
           if (vd.ok) {
-            localStorage.setItem("pro", "true");
-            alert("✅ PRO unlocked!");
+            // NOTE: next step will set pro_until based on server response
+            // for now, it will not grant PRO until we change this.
+            alert("✅ Payment verified! (Next step will activate 30-day PRO)");
             location.reload();
             return;
           }
