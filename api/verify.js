@@ -34,10 +34,9 @@ export default async function handler(req, res) {
 
     // constants
     const RECEIVER = "0x3B5Ca729ae7D427616873f5CD0B9418243090c4c";
-    const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"; // USDC on Base :contentReference[oaicite:0]{index=0}
-    const AMOUNT = ethers.parseUnits("9", 6); // 9 USDC (6 decimals)
+    const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+    const AMOUNT = ethers.parseUnits("9", 6); // 9 USDC
 
-    // Base public RPC :contentReference[oaicite:1]{index=1}
     const rpcUrl = process.env.BASE_RPC_URL || "https://mainnet.base.org";
     const provider = new ethers.JsonRpcProvider(rpcUrl);
 
@@ -81,10 +80,18 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: false, error: "Transfer not matching (from/to/amount)" });
     }
 
+    // ✅ 30-day PRO until (UTC)
+    const proUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
     const latest = await provider.getBlockNumber();
     const confirmations = latest - receipt.blockNumber;
 
-    return res.status(200).json({ ok: true, txHash, confirmations });
+    return res.status(200).json({
+      ok: true,
+      txHash,
+      confirmations,
+      pro_until: proUntil
+    });
   } catch (e) {
     console.log("verify error:", e);
     return res.status(500).json({ ok: false, error: "Server error", details: String(e?.message || e) });
