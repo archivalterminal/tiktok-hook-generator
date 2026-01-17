@@ -117,30 +117,10 @@
       TikTok hooks decide whether people watch or scroll.
       Enter your video topic and get <b>10 high-converting hooks</b>
       designed to grab attention in the first 3 seconds.
-      <br><br>
-      Perfect for creators, coaches, marketers, and anyone posting daily content.
-      <br><br>
-      <b>Why this tool works better than others:</b><br>
-      • Built specifically for TikTok hooks — not generic AI text<br>
-      • Gives multiple hook angles in one click<br>
-      • No prompts, no setup, no thinking — just results
-    </p>
-
-    <p class="examples">
-      <b>What to enter:</b><br>
-      Enter a short video topic — not a script and not a question.
-      Just describe what your video is about in a few words.
-      <br><br>
-      <b>Examples:</b><br>
-      • how to get clients<br>
-      • why your videos get no views<br>
-      • how to grow on TikTok<br>
-      • common fitness mistakes<br>
-      • habits that ruin your focus
     </p>
 
     <div class="meta">
-      <div id="limitText">Free trial: 2 generations</div>
+      <div>Free trial: 2 generations</div>
       <div id="counterText">Remaining: —</div>
     </div>
 
@@ -154,12 +134,20 @@
     <button class="upgrade" id="upgradeBtn" style="display:none;" onclick="upgrade()">Upgrade (Unlimited)</button>
   </div>
 
-  <!-- ✅ added ethers -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.umd.min.js"></script>
 
   <script>
     const FREE_LIMIT_TOTAL = 2;
     const STORAGE_KEY = "tth_free_total_v1";
+
+    const PRICE_USDC = 9;
+    const RECEIVER = "0x3B5Ca729ae7D427616873f5CD0B9418243090c4c";
+    const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+    const BASE_CHAIN_ID = "0x2105";
+
+    function isPro() {
+      return localStorage.getItem("pro") === "true";
+    }
 
     function getUsed() {
       return Number(localStorage.getItem(STORAGE_KEY) || 0);
@@ -170,6 +158,7 @@
     }
 
     function remaining() {
+      if (isPro()) return { used: 0, rem: Infinity };
       const used = getUsed();
       const rem = Math.max(0, FREE_LIMIT_TOTAL - used);
       return { used, rem };
@@ -177,23 +166,58 @@
 
     function updateCounterUI() {
       const { rem } = remaining();
-      document.getElementById("counterText").textContent = `Remaining: ${rem}`;
-      document.getElementById("upgradeBtn").style.display = rem === 0 ? "block" : "none";
+      document.getElementById("counterText").textContent =
+        isPro() ? "PRO: Unlimited" : `Remaining: ${rem}`;
+      document.getElementById("upgradeBtn").style.display =
+        isPro() ? "none" : rem === 0 ? "block" : "none";
     }
 
     function renderHooks(hooks) {
-      const container = document.getElementById("hooks");
-      container.innerHTML = "";
+      const c = document.getElementById("hooks");
+      c.innerHTML = "";
       hooks.forEach(h => {
-        const div = document.createElement("div");
-        div.className = "hook";
-        div.textContent = h;
-        container.appendChild(div);
+        const d = document.createElement("div");
+        d.className = "hook";
+        d.textContent = h;
+        c.appendChild(d);
       });
     }
 
-    function upgrade() {
-      alert("Payment coming next. This will unlock unlimited access.");
+    async function upgrade() {
+      if (!window.ethereum) return alert("Install MetaMask");
+
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        const signer = await provider.getSigner();
+
+        const network = await provider.getNetwork();
+        if (network.chainId !== 8453n) {
+          await window.ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: BASE_CHAIN_ID }]
+          });
+        }
+
+        const usdc = new ethers.Contract(
+          USDC_BASE,
+          ["function transfer(address to, uint256 amount) public returns (bool)"],
+          signer
+        );
+
+        const amount = ethers.parseUnits(String(PRICE_USDC), 6);
+        const tx = await usdc.transfer(RECEIVER, amount);
+
+        alert("Confirming transaction…");
+        await tx.wait();
+
+        localStorage.setItem("pro", "true");
+        alert("✅ PRO unlocked!");
+        location.reload();
+
+      } catch (e) {
+        alert("Payment cancelled or failed");
+      }
     }
 
     async function generateHooks() {
@@ -201,62 +225,35 @@
       const status = document.getElementById("status");
       const btn = document.getElementById("genBtn");
 
-      status.className = "status";
       status.textContent = "";
       renderHooks([]);
 
-      if (!topic) {
-        status.className = "status error";
-        status.textContent = "Please enter a topic.";
-        return;
-      }
+      if (!topic) return alert("Enter a topic");
 
       const u = remaining();
-      if (u.rem <= 0) {
-        status.className = "status error";
-        status.textContent =
-          "Free trial used.\nUpgrade to unlock unlimited generations.";
+      if (!isPro() && u.rem <= 0) {
         updateCounterUI();
-        return;
+        return alert("Free limit reached. Upgrade to continue.");
       }
 
       btn.disabled = true;
       status.textContent = "Generating…";
 
       try {
-        const resp = await fetch("/api/hooks", {
+        const r = await fetch("/api/hooks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ topic })
         });
+        const d = await r.json();
 
-        const data = await resp.json().catch(() => ({}));
-
-        if (!resp.ok) {
-          status.className = "status error";
-          status.textContent =
-            "API ERROR\n" +
-            (data.error ? data.error : "Unknown error");
-          return;
-        }
-
-        const hooks = Array.isArray(data.hooks) ? data.hooks : [];
-        if (!hooks.length) {
-          status.className = "status error";
-          status.textContent = "No hooks returned.";
-          return;
-        }
-
-        setUsed(getUsed() + 1);
+        renderHooks(d.hooks || []);
+        if (!isPro()) setUsed(getUsed() + 1);
         updateCounterUI();
 
-        status.className = "status ok";
         status.textContent = "Done.";
-        renderHooks(hooks);
-
-      } catch (e) {
-        status.className = "status error";
-        status.textContent = "NETWORK ERROR\n" + String(e);
+      } catch {
+        status.textContent = "Error";
       } finally {
         btn.disabled = false;
       }
@@ -264,11 +261,10 @@
 
     async function copyHooks() {
       const hooks = document.querySelectorAll(".hook");
-      if (!hooks.length) return alert("Nothing to copy.");
       let text = "";
       hooks.forEach(h => text += h.textContent + "\n");
       await navigator.clipboard.writeText(text);
-      alert("Hooks copied");
+      alert("Copied");
     }
 
     updateCounterUI();
