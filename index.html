@@ -183,14 +183,18 @@
       });
     }
 
+    // ✅ UPDATED: payment + server verify + retry
     async function upgrade() {
       if (!window.ethereum) return alert("Install MetaMask");
 
       try {
+        // 1) connect wallet
         const provider = new ethers.BrowserProvider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
         const signer = await provider.getSigner();
+        const payer = await signer.getAddress();
 
+        // 2) ensure Base
         const network = await provider.getNetwork();
         if (network.chainId !== 8453n) {
           await window.ethereum.request({
@@ -199,6 +203,7 @@
           });
         }
 
+        // 3) send USDC
         const usdc = new ethers.Contract(
           USDC_BASE,
           ["function transfer(address to, uint256 amount) public returns (bool)"],
@@ -209,12 +214,38 @@
         const tx = await usdc.transfer(RECEIVER, amount);
 
         alert("Confirming transaction…");
-        await tx.wait();
+        const receipt = await tx.wait();
 
-        localStorage.setItem("pro", "true");
-        alert("✅ PRO unlocked!");
-        location.reload();
+        alert("Verifying payment…");
 
+        // 4) verify on backend with retry (3 tries)
+        for (let i = 0; i < 3; i++) {
+          const vr = await fetch("/api/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ txHash: receipt.hash, payer })
+          });
+
+          const vd = await vr.json().catch(() => ({}));
+
+          if (vd.ok) {
+            localStorage.setItem("pro", "true");
+            alert("✅ PRO unlocked!");
+            location.reload();
+            return;
+          }
+
+          // if tx receipt not indexed yet, wait and retry
+          if (vd.error && String(vd.error).toLowerCase().includes("not found")) {
+            await new Promise(r => setTimeout(r, 2000));
+            continue;
+          }
+
+          alert("Payment not verified: " + (vd.error || "unknown"));
+          return;
+        }
+
+        alert("Payment pending. Please refresh the page in a moment.");
       } catch (e) {
         alert("Payment cancelled or failed");
       }
